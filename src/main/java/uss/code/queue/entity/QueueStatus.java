@@ -3,6 +3,6 @@ package uss.code.queue.entity;
 import lombok.Getter;
 
 @Getter
-public enum Status {
+public enum QueueStatus {
     WAITING,READY
 }
