@@ -39,3 +39,4 @@ out/
 ### Claude Code ###
 CLAUDE.md
 TASKS.md
+/src/test/java/uss/code/load-test/venv

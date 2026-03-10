@@ -1,13 +1,15 @@
 package uss.code.queue.dto.res;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 
 import static lombok.AccessLevel.PRIVATE;
 
 @Builder(access = PRIVATE)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record QueueStatusResponse(
     boolean isAccessible,
-    Integer waitingCount,
+    Long waitingCount,
     String token
 ) {
     public static QueueStatusResponse connected() {
@@ -18,7 +20,7 @@ public record QueueStatusResponse(
                 .build();
     }
 
-    public static QueueStatusResponse waiting(final int waitingCount) {
+    public static QueueStatusResponse waiting(final long waitingCount) {
         return QueueStatusResponse.builder()
                 .isAccessible(false)
                 .waitingCount(waitingCount)
