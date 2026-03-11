@@ -179,7 +179,7 @@ def check_server_connection(url):
         import requests
         response = requests.get(
             f"{url}/api/v1/queue/sub?studentId=health_check",
-            timeout=5,
+            timeout=1,
             stream=True
         )
         print(f"[OK] Server responding (HTTP {response.status_code})\n")

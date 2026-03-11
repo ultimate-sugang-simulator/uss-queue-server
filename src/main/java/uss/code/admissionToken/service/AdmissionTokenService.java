@@ -15,8 +15,6 @@ public class AdmissionTokenService {
 
     @Transactional
     public AdmissionToken issue(final String studentId){
-        admissionTokenRepository.deleteByStudentId(studentId);
-
         String token = AdmissionTokenGenerator.generate();
         AdmissionToken admissionToken = AdmissionToken.issue(token, studentId);
 

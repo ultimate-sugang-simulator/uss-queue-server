@@ -4,10 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import uss.code.emitter.service.EmitterService;
+import uss.code.global.exception.entity.RestApiException;
+import uss.code.global.exception.entity.SseException;
 import uss.code.queue.dto.res.QueueStatusResponse;
 import uss.code.ticket.service.TicketService;
 
-import java.io.IOException;
+import static uss.code.global.exception.entity.ExceptionCode.SSE_CONNECTION_FAILED;
 
 @Component
 @RequiredArgsConstructor
@@ -26,10 +28,10 @@ public class QueueFacade {
         SseEmitter sseEmitter = createAndSetUpEmitter(studentId);
 
         try{
-            emitterService.sendEvent(sseEmitter, QueueStatusResponse.connected());
-        }catch (IOException e){
+            emitterService.sendEvent(studentId, sseEmitter, QueueStatusResponse.connected());
+        }catch (SseException e){
             cleanUp(studentId);
-            throw new RuntimeException("Failed to send initial connection message", e);
+            throw new RestApiException(SSE_CONNECTION_FAILED);
         }
 
         return sseEmitter;

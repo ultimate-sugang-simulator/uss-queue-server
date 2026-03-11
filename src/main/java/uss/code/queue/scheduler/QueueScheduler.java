@@ -1,19 +1,21 @@
 package uss.code.queue.scheduler;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import uss.code.admissionToken.domain.AdmissionToken;
 import uss.code.admissionToken.service.AdmissionTokenService;
 import uss.code.emitter.service.EmitterService;
+import uss.code.global.exception.entity.SseException;
 import uss.code.queue.dto.res.QueueStatusResponse;
 import uss.code.ticket.domain.Ticket;
 import uss.code.ticket.service.TicketService;
 
-import java.io.IOException;
 import java.util.List;
 
+@Log4j2
 @Component
 @RequiredArgsConstructor
 public class QueueScheduler {
@@ -38,7 +40,8 @@ public class QueueScheduler {
         waitingTickets.forEach(ticket -> {
             try {
                 admitMember(ticket.getStudentId());
-            } catch (Exception e) {
+            } catch (SseException e) {
+                log.error("대기열 입장 처리 결과 전송 실패 - studentId: {}", ticket.getStudentId());
                 cleanUpMember(ticket.getStudentId());
             }
         });
@@ -55,18 +58,20 @@ public class QueueScheduler {
             final Ticket ticket = waitingTickets.get(i);
             try {
                 sendWaitingCount(ticket.getStudentId(), i);
-            } catch (Exception e) {
+            } catch (SseException e) {
+                log.error("대기열 상태 전송 실패 - studentId: {}", ticket.getStudentId());
                 cleanUpMember(ticket.getStudentId());
             }
         }
     }
 
-    private void admitMember(final String studentId) throws IOException {
+    private void admitMember(final String studentId) {
         final AdmissionToken admissionToken = admissionTokenService.issue(studentId);
         final QueueStatusResponse response = QueueStatusResponse.accessible(admissionToken.getToken());
 
         final SseEmitter emitter = emitterService.getEmitter(studentId);
-        emitterService.sendEvent(emitter, response);
+
+        emitterService.sendEvent(studentId, emitter, response);
 
         cleanUpMember(studentId);
     }
@@ -74,11 +79,12 @@ public class QueueScheduler {
     private void sendWaitingCount(
             final String studentId,
             final int waitingCount
-    ) throws IOException {
+    ){
         final QueueStatusResponse response = QueueStatusResponse.waiting(waitingCount);
 
         final SseEmitter emitter = emitterService.getEmitter(studentId);
-        emitterService.sendEvent(emitter, response);
+
+        emitterService.sendEvent(studentId, emitter, response);
     }
 
     private void cleanUpMember(final String studentId) {

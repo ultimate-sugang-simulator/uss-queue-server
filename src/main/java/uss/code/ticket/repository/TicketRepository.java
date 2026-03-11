@@ -15,7 +15,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
         SELECT t
         FROM Ticket t
         ORDER BY t.id ASC
-        LIMIT 200
+        LIMIT 100
     """)
     List<Ticket> findTop200();
 }
