@@ -19,7 +19,7 @@ public class TicketService {
 
     @Transactional
     public void issue(final String studentId){
-        Ticket ticket = Ticket.issue(studentId);
+        final Ticket ticket = Ticket.issue(studentId);
         ticketRepository.save(ticket);
     }
 
@@ -36,7 +36,7 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<Ticket> getTop200Tickets() {
+    public List<Ticket> getTargetTickets() {
         return ticketRepository.findTop200();
     }
 

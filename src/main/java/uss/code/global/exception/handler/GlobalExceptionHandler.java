@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ExceptionResponse> handleRestApiException(final RestApiException e) {
         log.error("예외 발생: {}", e.getExceptionCode().getMessage());
 
-        ExceptionResponse exceptionResponse = ExceptionResponse.of(e.getExceptionCode().getCode(), e.getExceptionCode().getMessage());
+        final ExceptionResponse exceptionResponse = ExceptionResponse.of(e.getExceptionCode().getCode(), e.getExceptionCode().getMessage());
 
         return ResponseEntity.status(e.getExceptionCode().getHttpStatus()).body(exceptionResponse);
     }

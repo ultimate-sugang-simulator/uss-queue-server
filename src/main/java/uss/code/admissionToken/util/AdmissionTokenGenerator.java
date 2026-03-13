@@ -15,7 +15,7 @@ public class AdmissionTokenGenerator {
         StringBuilder token = new StringBuilder(TOKEN_LENGTH);
 
         for (int i = 0; i < TOKEN_LENGTH; i++) {
-            int randomIndex = RANDOM.nextInt(CHARACTERS.length());
+            final int randomIndex = RANDOM.nextInt(CHARACTERS.length());
             token.append(CHARACTERS.charAt(randomIndex));
         }
 

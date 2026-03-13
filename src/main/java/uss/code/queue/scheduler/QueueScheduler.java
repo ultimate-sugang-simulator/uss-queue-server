@@ -24,30 +24,46 @@ public class QueueScheduler {
     private final EmitterService emitterService;
     private final AdmissionTokenService admissionTokenService;
 
-    @Scheduled(cron = "*/4 * * * * *")
+    @Scheduled(cron = "*/2 * * * * *")
     public void processQueue() {
-        admitWaitingStudents();
-        sendQueueStatusToWaitingStudents();
+        admitWaitingMembers();
+        sendWaitingStatus();
     }
 
-    private void admitWaitingStudents() {
-        final List<Ticket> waitingTickets = ticketService.getTop200Tickets();
+    private void admitWaitingMembers() {
+        final List<Ticket> targetTickets = ticketService.getTargetTickets();
 
-        if (waitingTickets.isEmpty()) {
+        if (targetTickets.isEmpty()) {
             return;
         }
 
-        waitingTickets.forEach(ticket -> {
+        targetTickets.forEach(targetTicket -> {
             try {
-                admitMember(ticket.getStudentId());
+                admitWaitingMember(targetTicket.getStudentId());
             } catch (SseException e) {
-                log.error("대기열 입장 처리 결과 전송 실패 - studentId: {}", ticket.getStudentId());
-                cleanUpMember(ticket.getStudentId());
+                log.error("대기열 입장 처리 결과 전송 실패 - studentId: {}", targetTicket.getStudentId());
+                cleanUpMember(targetTicket.getStudentId());
             }
         });
     }
 
-    private void sendQueueStatusToWaitingStudents() {
+    private void admitWaitingMember(final String studentId) {
+        final AdmissionToken admissionToken = admissionTokenService.issue(studentId);
+        final QueueStatusResponse response = QueueStatusResponse.accessible(admissionToken.getToken());
+
+        final SseEmitter emitter = emitterService.getEmitter(studentId);
+
+        if (emitter == null) {
+            handleDisconnectedMember(studentId, admissionToken.getToken());
+            return;
+        }
+
+        emitterService.sendEvent(studentId, emitter, response);
+
+        cleanUpMember(studentId);
+    }
+
+    private void sendWaitingStatus() {
         final List<Ticket> waitingTickets = ticketService.getAllTickets();
 
         if (waitingTickets.isEmpty()) {
@@ -57,7 +73,7 @@ public class QueueScheduler {
         for (int i = 0; i < waitingTickets.size(); i++) {
             final Ticket ticket = waitingTickets.get(i);
             try {
-                sendWaitingCount(ticket.getStudentId(), i);
+                sendWaitingStatus(ticket.getStudentId(), i);
             } catch (SseException e) {
                 log.error("대기열 상태 전송 실패 - studentId: {}", ticket.getStudentId());
                 cleanUpMember(ticket.getStudentId());
@@ -65,39 +81,37 @@ public class QueueScheduler {
         }
     }
 
-    private void admitMember(final String studentId) {
-        final AdmissionToken admissionToken = admissionTokenService.issue(studentId);
-        final QueueStatusResponse response = QueueStatusResponse.accessible(admissionToken.getToken());
-
-        final SseEmitter emitter = emitterService.getEmitter(studentId);
-
-        emitterService.sendEvent(studentId, emitter, response);
-
-        cleanUpMember(studentId);
-    }
-
-    private void sendWaitingCount(
+    private void sendWaitingStatus(
             final String studentId,
             final int waitingCount
-    ){
+    ) {
         final QueueStatusResponse response = QueueStatusResponse.waiting(waitingCount);
 
         final SseEmitter emitter = emitterService.getEmitter(studentId);
 
+        if (emitter == null) {
+            handleDisconnectedMember(studentId, null);
+            return;
+        }
+
         emitterService.sendEvent(studentId, emitter, response);
     }
 
-    private void cleanUpMember(final String studentId) {
-        try {
-            ticketService.delete(studentId);
-        } catch (Exception e) {
-            // 이미 삭제된 경우 무시 (동시성으로 인한 중복 삭제 시도)
+    private void handleDisconnectedMember(
+            final String studentId,
+            final String admissionToken
+    ) {
+        log.warn("연결 끊김 감지 - studentId: {}", studentId);
+
+        if (admissionToken != null) {
+            admissionTokenService.delete(admissionToken);
         }
 
-        try {
-            emitterService.delete(studentId);
-        } catch (Exception e) {
-            // 이미 삭제된 경우 무시
-        }
+        cleanUpMember(studentId);
+    }
+
+    private void cleanUpMember(final String studentId) {
+        ticketService.delete(studentId);
+        emitterService.delete(studentId);
     }
 }

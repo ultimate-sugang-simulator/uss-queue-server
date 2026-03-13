@@ -23,9 +23,8 @@ public class EmitterService {
     private final EmitterRepository emitterRepository;
 
     public SseEmitter create(final String studentId) {
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
-        emitterRepository.save(studentId, emitter);
-        return emitter;
+        final SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
+        return emitterRepository.save(studentId, emitter);
     }
 
     public void delete(final String studentId){

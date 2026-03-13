@@ -25,7 +25,7 @@ public class QueueFacade {
 
         ticketService.issue(studentId);
 
-        SseEmitter sseEmitter = createAndSetUpEmitter(studentId);
+        final SseEmitter sseEmitter = createAndSetUpEmitter(studentId);
 
         try{
             emitterService.sendEvent(studentId, sseEmitter, QueueStatusResponse.connected());

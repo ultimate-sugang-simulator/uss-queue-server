@@ -20,4 +20,9 @@ public class AdmissionTokenService {
 
         return admissionTokenRepository.save(admissionToken);
     }
+
+    @Transactional
+    public void delete(final String studentId) {
+        admissionTokenRepository.deleteByStudentId(studentId);
+    }
 }
