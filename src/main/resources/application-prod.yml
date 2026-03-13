@@ -3,10 +3,10 @@ spring:
     name: uss-queue-server
 
   datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3308/uss_queue_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: root
-    password: root
 
   jpa:
     hibernate:
@@ -21,20 +21,12 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6391
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
   sql:
     init:
       mode: never
-
-server:
-  port: 8080
-  tomcat:
-    threads:
-      max: 1000
-    accept-count: 500
-    max-connections: 10000
 
 logging:
   level:

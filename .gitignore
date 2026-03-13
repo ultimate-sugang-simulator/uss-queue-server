@@ -39,4 +39,6 @@ out/
 ### Claude Code ###
 CLAUDE.md
 TASKS.md
+
 /src/test/java/uss/code/load-test/venv
+/src/main/resources/application.yml

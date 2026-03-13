@@ -1,28 +1,29 @@
 package uss.code.admissionToken.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import uss.code.admissionToken.domain.AdmissionToken;
-import uss.code.admissionToken.repository.AdmissionTokenRepository;
 import uss.code.admissionToken.util.AdmissionTokenGenerator;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class AdmissionTokenService {
 
-    private final AdmissionTokenRepository admissionTokenRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Transactional
-    public AdmissionToken issue(final String studentId){
+    public String issue(final String studentId){
         String token = AdmissionTokenGenerator.generate();
-        AdmissionToken admissionToken = AdmissionToken.issue(token, studentId);
+        redisTemplate.opsForValue().set(studentId, token, 60, TimeUnit.SECONDS);
 
-        return admissionTokenRepository.save(admissionToken);
+        return token;
     }
 
     @Transactional
     public void delete(final String studentId) {
-        admissionTokenRepository.deleteByStudentId(studentId);
+        redisTemplate.delete(studentId);
     }
 }

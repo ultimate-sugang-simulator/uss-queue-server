@@ -5,7 +5,6 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import uss.code.admissionToken.domain.AdmissionToken;
 import uss.code.admissionToken.service.AdmissionTokenService;
 import uss.code.emitter.service.EmitterService;
 import uss.code.global.exception.entity.SseException;
@@ -48,13 +47,13 @@ public class QueueScheduler {
     }
 
     private void admitWaitingMember(final String studentId) {
-        final AdmissionToken admissionToken = admissionTokenService.issue(studentId);
-        final QueueStatusResponse response = QueueStatusResponse.accessible(admissionToken.getToken());
+        final String token = admissionTokenService.issue(studentId);
+        final QueueStatusResponse response = QueueStatusResponse.accessible(token);
 
         final SseEmitter emitter = emitterService.getEmitter(studentId);
 
         if (emitter == null) {
-            handleDisconnectedMember(studentId, admissionToken.getToken());
+            handleDisconnectedMember(studentId, token);
             return;
         }
 
