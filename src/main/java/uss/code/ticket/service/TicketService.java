@@ -3,10 +3,13 @@ package uss.code.ticket.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import uss.code.global.exception.entity.RestApiException;
 import uss.code.ticket.domain.Ticket;
 import uss.code.ticket.repository.TicketRepository;
 
 import java.util.List;
+
+import static uss.code.global.exception.entity.ExceptionCode.TICKET_ALREADY_EXISTS;
 
 @Service
 @RequiredArgsConstructor
@@ -16,7 +19,7 @@ public class TicketService {
 
     @Transactional
     public void issue(final String studentId){
-        Ticket ticket = Ticket.issue(studentId);
+        final Ticket ticket = Ticket.issue(studentId);
         ticketRepository.save(ticket);
     }
 
@@ -25,15 +28,15 @@ public class TicketService {
         ticketRepository.deleteByStudentId(studentId);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public void validateTicketAlreadyExists(final String studentId) {
         if (ticketRepository.existsByStudentId(studentId)) {
-            throw new RuntimeException("Ticket already exists");
+            throw new RestApiException(TICKET_ALREADY_EXISTS);
         }
     }
 
     @Transactional(readOnly = true)
-    public List<Ticket> getTop200Tickets() {
+    public List<Ticket> getTargetTickets() {
         return ticketRepository.findTop200();
     }
 

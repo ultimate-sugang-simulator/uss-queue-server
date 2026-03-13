@@ -20,11 +20,10 @@ import time
 import argparse
 from datetime import datetime
 import sys
+import uuid
 
 
 class SSELoadTester:
-    """SSE 대기열 서버 부하 테스트 클래스"""
-
     def __init__(self, base_url, num_connections, duration):
         self.base_url = base_url
         self.num_connections = num_connections
@@ -39,20 +38,20 @@ class SSELoadTester:
         self.start_time = None
 
     async def connect_sse(self, session, student_id):
-        """SSE 연결 수립 및 메시지 수신"""
         url = f"{self.base_url}/api/v1/queue/sub?studentId={student_id}"
 
         try:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=None)) as response:
                 if response.status != 200:
                     self.stats['failed'] += 1
-                    print(f"✗ [{student_id}] 연결 실패: HTTP {response.status}")
+                    print(f"[FAIL] {student_id} | HTTP {response.status}")
                     return
 
                 self.stats['connected'] += 1
-                print(f"✓ [{student_id}] 연결 성공 (총 {self.stats['connected']}개)")
+                print(f"[CONN] {student_id} | Connected (total: {self.stats['connected']})")
 
                 # SSE 메시지 수신
+                message_count = 0
                 async for line in response.content:
                     if not line:
                         continue
@@ -62,6 +61,7 @@ class SSELoadTester:
                         continue
 
                     self.stats['messages_received'] += 1
+                    message_count += 1
 
                     # JSON 파싱
                     try:
@@ -72,23 +72,23 @@ class SSELoadTester:
 
                         if is_accessible and token:
                             self.stats['admitted'] += 1
-                            print(f"✓ [{student_id}] 입장 승인 (token={token[:8]}...) - 연결 종료")
+                            print(f"[ADMIT] {student_id} | Admitted | token: {token[:10]}... | waited: {message_count} msgs")
                             break
-                        elif waiting_count is not None:
-                            print(f"  [{student_id}] 대기 중 (앞에 {waiting_count}명)")
-                        else:
-                            print(f"  [{student_id}] 연결됨")
+                        elif waiting_count is not None and message_count % 5 == 1:
+                            # 5개 메시지마다 한 번씩만 출력
+                            print(f"[WAIT] {student_id} | Queue position: {waiting_count}")
 
                     except json.JSONDecodeError:
-                        print(f"  [{student_id}] 알 수 없는 메시지: {message[:60]}...")
+                        if message_count == 1:
+                            print(f"[WARN] {student_id} | Parse failed: {message[:50]}")
 
         except asyncio.TimeoutError:
             self.stats['failed'] += 1
-            print(f"✗ [{student_id}] 타임아웃")
+            print(f"[TIMEOUT] {student_id}")
         except Exception as e:
             self.stats['failed'] += 1
-            error_msg = f"[{student_id}] {type(e).__name__}: {str(e)}"
-            print(f"✗ {error_msg}")
+            error_msg = f"{student_id} | {type(e).__name__}: {str(e)}"
+            print(f"[ERROR] {error_msg}")
             self.stats['errors'].append(error_msg)
 
     async def run_test(self):
@@ -102,7 +102,7 @@ class SSELoadTester:
 
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             tasks = [
-                self.connect_sse(session, f"student_{i}")
+                self.connect_sse(session, f"user_{str(uuid.uuid4())[:6]}")
                 for i in range(self.num_connections)
             ]
 
@@ -112,75 +112,82 @@ class SSELoadTester:
                     timeout=self.duration
                 )
             except asyncio.TimeoutError:
-                print(f"\n⏱ 테스트 시간 {self.duration}초 경과")
+                print(f"\n[TIMEOUT] Test duration limit reached ({self.duration}s)")
 
         self._print_results()
 
     def _print_header(self):
-        """테스트 헤더 출력"""
-        print(f"\n{'='*70}")
-        print(f"SSE 대기열 서버 부하 테스트")
-        print(f"{'='*70}")
-        print(f"서버 URL          : {self.base_url}")
-        print(f"동시 연결 수       : {self.num_connections}명")
-        print(f"최대 테스트 시간   : {self.duration}초")
-        print(f"시작 시간         : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"{'='*70}\n")
+        print(f"\n{'='*80}")
+        print(f"SSE Queue Load Test")
+        print(f"{'='*80}")
+        print(f"Server URL       : {self.base_url}")
+        print(f"Connections      : {self.num_connections}")
+        print(f"Max Duration     : {self.duration}s")
+        print(f"Start Time       : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"{'='*80}\n")
 
     def _print_results(self):
-        """테스트 결과 출력"""
         elapsed = time.time() - self.start_time
         success_rate = (self.stats['connected'] / self.num_connections * 100) if self.num_connections > 0 else 0
         admitted_rate = (self.stats['admitted'] / self.stats['connected'] * 100) if self.stats['connected'] > 0 else 0
+        msg_per_sec = self.stats['messages_received'] / elapsed if elapsed > 0 else 0
 
-        print(f"\n{'='*70}")
-        print(f"테스트 결과")
-        print(f"{'='*70}")
-        print(f"총 시도 연결 수    : {self.num_connections}명")
-        print(f"성공한 연결 수     : {self.stats['connected']}명 ({success_rate:.1f}%)")
-        print(f"실패한 연결 수     : {self.stats['failed']}명")
-        print(f"입장 처리된 수     : {self.stats['admitted']}명 ({admitted_rate:.1f}%)")
-        print(f"수신한 메시지 수   : {self.stats['messages_received']}개")
-        print(f"소요 시간         : {elapsed:.2f}초")
-        print(f"{'='*70}\n")
+        print(f"\n{'='*80}")
+        print(f"Test Results")
+        print(f"{'='*80}")
+        print(f"Total Attempts   : {self.num_connections}")
+        print(f"Connected        : {self.stats['connected']} ({success_rate:.1f}%)")
+        print(f"Failed           : {self.stats['failed']}")
+        print(f"Admitted         : {self.stats['admitted']} ({admitted_rate:.1f}% of connected)")
+        print(f"Messages         : {self.stats['messages_received']} ({msg_per_sec:.1f} msg/s)")
+        print(f"Duration         : {elapsed:.2f}s")
+        print(f"{'='*80}")
 
         # 평가
-        self._print_evaluation(success_rate)
+        self._print_evaluation(success_rate, admitted_rate)
 
         # 에러 상세
         if self.stats['errors']:
-            print(f"\n에러 상세 (최대 10개):")
+            print(f"\nErrors (showing first 10):")
             for error in self.stats['errors'][:10]:
-                print(f"  - {error}")
+                print(f"  {error}")
             if len(self.stats['errors']) > 10:
-                print(f"  ... 외 {len(self.stats['errors']) - 10}개")
+                print(f"  ... and {len(self.stats['errors']) - 10} more")
+            print()
 
-    def _print_evaluation(self, success_rate):
-        """테스트 평가 출력"""
+    def _print_evaluation(self, success_rate, admitted_rate):
+        print()
         if success_rate >= 90:
-            print("✅ 테스트 통과: 90% 이상 연결 성공")
+            print("Status: PASS | 90%+ connections succeeded")
         elif success_rate >= 70:
-            print("⚠️  경고: 70~90% 연결 성공, 시스템 최적화 권장")
+            print("Status: WARN | 70-90% connections (optimization recommended)")
         else:
-            print("❌ 테스트 실패: 70% 미만 연결 성공, 시스템 한계 도달")
+            print("Status: FAIL | <70% connections (system capacity exceeded)")
+
+        if self.stats['connected'] > 0:
+            if admitted_rate >= 80:
+                print("Queue:  GOOD | 80%+ users admitted")
+            elif admitted_rate >= 50:
+                print("Queue:  SLOW | 50-80% users admitted (check scheduler)")
+            else:
+                print("Queue:  POOR | <50% users admitted (scheduler issue?)")
 
 
 def check_server_connection(url):
-    """서버 연결 사전 테스트"""
-    print("서버 연결 확인 중...\n")
+    print("Checking server connection...\n")
     try:
         import requests
         response = requests.get(
             f"{url}/api/v1/queue/sub?studentId=health_check",
-            timeout=5,
+            timeout=1,
             stream=True
         )
-        print(f"✓ 서버 응답 확인 (HTTP {response.status_code})")
+        print(f"[OK] Server responding (HTTP {response.status_code})\n")
         return True
     except Exception as e:
-        print(f"✗ 서버 연결 실패: {e}")
-        print("\n서버가 실행 중인지 확인하세요:")
-        print("  $ ./gradlew bootRun")
+        print(f"[FAIL] Cannot connect to server: {e}")
+        print("\nPlease ensure server is running:")
+        print("  $ ./gradlew bootRun\n")
         return False
 
 
@@ -219,7 +226,7 @@ def main():
     try:
         asyncio.run(tester.run_test())
     except KeyboardInterrupt:
-        print("\n\n⚠️  테스트 중단됨 (Ctrl+C)")
+        print("\n\n[INTERRUPTED] Test stopped by user (Ctrl+C)")
         if tester.start_time:
             tester._print_results()
         sys.exit(130)

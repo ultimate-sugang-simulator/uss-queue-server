@@ -1,5 +1,7 @@
 version: '3.8'
 
+name: uss-queue
+
 services:
   mysql:
     image: mysql:8.0
@@ -12,7 +14,7 @@ services:
     ports:
       - "3308:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - uss_queue_mysql_data:/var/lib/mysql
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -22,6 +24,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: uss-queue-redis
+    restart: always
+    ports:
+      - "6391:6379"
+    volumes:
+      - uss_queue_redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
-  mysql_data:
+  uss_queue_mysql_data:
+    driver: local
+  uss_queue_redis_data:
     driver: local
