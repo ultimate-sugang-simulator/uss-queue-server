@@ -30,7 +30,6 @@ jobs:
           spring.datasource.username: ${{secrets.DATABASE_USERNAME}}
           spring.datasource.password: ${{secrets.DATABASE_PASSWORD}}
           spring.data.redis.host: ${{secrets.REDIS_HOST}}
-          spring.data.redis.port: ${{secrets.REDIS_PORT}}
 
       - name: Gradle 권한 설정
         run: chmod +x ./gradlew
