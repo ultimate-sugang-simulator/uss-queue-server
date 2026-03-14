@@ -16,7 +16,7 @@ services:
     volumes:
       - ./logs:/var/log/spring
     depends_on:
-      redis:
+      uss-queue-redis:
         condition: service_healthy
 
   uss-queue-redis:
@@ -42,4 +42,5 @@ volumes:
 
 networks:
   uss-prod:
-    driver: bridge
+    external: true
+    name: prod_uss-prod
