@@ -20,9 +20,16 @@ public class SecurityFilter extends OncePerRequestFilter {
             final HttpServletResponse response,
             final FilterChain filterChain
     ) throws ServletException, IOException {
-        String requestURI = request.getRequestURI();
+        final String requestURI = request.getRequestURI();
 
         if(!requestURI.equals("/api/v1/queue/sub")){
+            setErrorResponse(response);
+            return;
+        }
+
+        final String method = request.getMethod();
+
+        if(!method.equals("GET")){
             setErrorResponse(response);
             return;
         }
